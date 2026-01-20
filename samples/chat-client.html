@@ -1,0 +1,55 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>FlexiRent Chat Client Sample</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/7.0.5/signalr.min.js"></script>
+</head>
+<body>
+  <h3>Chat sample</h3>
+  <div>
+    <input id="token" placeholder="JWT access token" style="width: 400px"/>
+    <button id="connect">Connect</button>
+  </div>
+  <div>
+    <input id="bookingId" placeholder="BookingId" />
+    <input id="message" placeholder="Message" />
+    <button id="send">Send to booking</button>
+  </div>
+  <pre id="log"></pre>
+
+<script>
+  let connection = null;
+  const log = (msg) => { document.getElementById('log').innerText += msg + "\n"; };
+
+  document.getElementById('connect').onclick = async () => {
+    const token = document.getElementById('token').value.trim();
+    if (!token) { alert('supply JWT token'); return; }
+
+    connection = new signalR.HubConnectionBuilder()
+      .withUrl("/hubs/chat", { accessTokenFactory: () => token })
+      .withAutomaticReconnect()
+      .build();
+
+    connection.on("ReceiveBookingMessage", (payload) => {
+      log("Booking message: " + JSON.stringify(payload));
+    });
+
+    connection.on("ReceiveDirectMessage", (payload) => {
+      log("Direct message: " + JSON.stringify(payload));
+    });
+
+    await connection.start();
+    log("Connected. ConnectionId: " + connection.connectionId);
+  };
+
+  document.getElementById('send').onclick = async () => {
+    const bookingId = document.getElementById('bookingId').value;
+    const message = document.getElementById('message').value;
+    if (!connection) { alert("Not connected"); return; }
+    await connection.invoke("SendMessageToBooking", bookingId, message);
+    log("Sent to booking " + bookingId);
+  };
+</script>
+</body>
+</html>

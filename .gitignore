@@ -1,0 +1,6 @@
+bin/
+obj/
+.vs/
+uploads/
+appsettings.*.json
+**/*.user
