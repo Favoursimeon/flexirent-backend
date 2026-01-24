@@ -1,5 +1,8 @@
 using SendGrid;
 using SendGrid.Helpers.Mail;
+using Microsoft.Extensions.Configuration;
+using System;
+using System.Threading.Tasks;
 
 namespace FlexiRent.Infrastructure.Services
 {

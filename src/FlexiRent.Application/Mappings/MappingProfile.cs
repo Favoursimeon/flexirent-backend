@@ -1,14 +1,14 @@
 using AutoMapper;
+using FlexiRent.Application.DTOs;
 using FlexiRent.Domain.Entities;
 
-namespace FlexiRent.Application.Mappings
+namespace FlexiRent.Application.Mappings;
+
+public class MappingProfile : AutoMapper.Profile
 {
-    public class MappingProfile : Profile
+    public MappingProfile()
     {
-        public MappingProfile()
-        {
-            CreateMap<User, Profile>().ReverseMap();
-            // Add DTO mappings here
-        }
+        CreateMap<RegisterRequest, User>();
+        CreateMap<User, AuthResponse>();
     }
 }

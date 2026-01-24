@@ -1,0 +1,40 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlexiRent.Api", "FlexiRent.Api\FlexiRent.Api.csproj", "{21E9F0BD-8C98-453D-B848-87924298E542}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlexiRent.Application", "FlexiRent.Application\FlexiRent.Application.csproj", "{C11DF1B3-7E64-481C-A02B-A819634CFD68}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlexiRent.Domain", "FlexiRent.Domain\FlexiRent.Domain.csproj", "{694B98D2-1C42-4E35-BA57-D96898E92DA4}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FlexiRent.Infrastructure", "FlexiRent.Infrastructure\FlexiRent.Infrastructure.csproj", "{01F1B232-2FA1-467E-AF52-983AE8128AF3}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{21E9F0BD-8C98-453D-B848-87924298E542}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{21E9F0BD-8C98-453D-B848-87924298E542}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{21E9F0BD-8C98-453D-B848-87924298E542}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{21E9F0BD-8C98-453D-B848-87924298E542}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C11DF1B3-7E64-481C-A02B-A819634CFD68}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C11DF1B3-7E64-481C-A02B-A819634CFD68}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C11DF1B3-7E64-481C-A02B-A819634CFD68}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C11DF1B3-7E64-481C-A02B-A819634CFD68}.Release|Any CPU.Build.0 = Release|Any CPU
+		{694B98D2-1C42-4E35-BA57-D96898E92DA4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{694B98D2-1C42-4E35-BA57-D96898E92DA4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{694B98D2-1C42-4E35-BA57-D96898E92DA4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{694B98D2-1C42-4E35-BA57-D96898E92DA4}.Release|Any CPU.Build.0 = Release|Any CPU
+		{01F1B232-2FA1-467E-AF52-983AE8128AF3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{01F1B232-2FA1-467E-AF52-983AE8128AF3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{01F1B232-2FA1-467E-AF52-983AE8128AF3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{01F1B232-2FA1-467E-AF52-983AE8128AF3}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal
