@@ -1,8 +1,10 @@
+using FlexiRent.Infrastructure;
 using FlexiRent.Infrastructure.Services;
 using FlexiRent.Domain.Entities;
 using FlexiRent.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 
 namespace FlexiRent.Api.Controllers
 {

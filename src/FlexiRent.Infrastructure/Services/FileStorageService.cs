@@ -8,7 +8,7 @@ namespace FlexiRent.Infrastructure.Services
 {
     public interface IFileStorageService
     {
-        Task<string> SaveFileAsync(IFormFile file, string folder = null);
+        Task<string> SaveFileAsync(IFormFile file, string? folder = null);
         Task<Stream> GetFileAsync(string relativePath);
         Task DeleteFileAsync(string relativePath);
     }
@@ -22,7 +22,7 @@ namespace FlexiRent.Infrastructure.Services
             if (!Directory.Exists(_basePath)) Directory.CreateDirectory(_basePath);
         }
 
-        public async Task<string> SaveFileAsync(IFormFile file, string folder = null)
+        public async Task<string> SaveFileAsync(IFormFile file, string? folder = null)
         {
             var folderPath = folder == null ? _basePath : Path.Combine(_basePath, folder);
             if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
