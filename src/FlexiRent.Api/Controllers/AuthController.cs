@@ -1,4 +1,5 @@
 using FlexiRent.Application.DTOs;
+using FlexiRent.Infrastructure;
 using FlexiRent.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

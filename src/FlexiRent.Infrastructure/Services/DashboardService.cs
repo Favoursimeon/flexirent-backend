@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+
 namespace FlexiRent.Infrastructure.Services
 {
     public interface IDashboardService

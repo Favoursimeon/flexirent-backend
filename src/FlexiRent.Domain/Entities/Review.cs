@@ -5,4 +5,5 @@ public class Review
     public Guid Id { get; set; }
     public string TargetType { get; set; } = default!;
     public Guid TargetId { get; set; }
+    public int Rating { get; set; }
 }

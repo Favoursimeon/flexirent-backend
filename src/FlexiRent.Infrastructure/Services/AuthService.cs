@@ -59,7 +59,7 @@ namespace FlexiRent.Infrastructure.Services
             // assign role
             var role = new UserRole { UserId = user.Id, Role = req.Role };
             _db.UserRoles.Add(role);
-            _db.Profiles.Add(new Profile { UserId = user.Id, FullName = req.FullName });
+            _db.Profiles.Add(new FlexiRent.Domain.Entities.Profile { UserId = user.Id, FullName = req.FullName });
             // create verification token
             var verification = new UserVerification
             {
