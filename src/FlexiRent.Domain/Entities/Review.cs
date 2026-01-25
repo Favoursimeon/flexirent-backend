@@ -6,4 +6,6 @@ public class Review
     public string TargetType { get; set; } = default!;
     public Guid TargetId { get; set; }
     public int Rating { get; set; }
+    public string Comment { get; set; } = default!;
+    public DateTime CreatedAt { get; set; }
 }

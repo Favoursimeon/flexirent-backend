@@ -114,7 +114,7 @@ namespace FlexiRent.Infrastructure.Services
         private async Task<AuthResponse> GenerateTokensForUserAsync(User user)
         {
             var jwtSettings = _config.GetSection("JwtSettings");
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]));
+            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret is not configured")));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
             var roles = await _db.UserRoles.Where(r => r.UserId == user.Id).Select(r => r.Role).ToListAsync();
@@ -128,7 +128,7 @@ namespace FlexiRent.Infrastructure.Services
                 issuer: jwtSettings["Issuer"],
                 audience: jwtSettings["Audience"],
                 claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(double.Parse(jwtSettings["AccessTokenExpiryMinutes"])),
+                expires: DateTime.UtcNow.AddMinutes(double.Parse(jwtSettings["AccessTokenExpiryMinutes"] ?? "60")),
                 signingCredentials: creds
             );
 
@@ -139,7 +139,7 @@ namespace FlexiRent.Infrastructure.Services
             {
                 UserId = user.Id,
                 Token = Guid.NewGuid().ToString(),
-                ExpiresAt = DateTime.UtcNow.AddDays(double.Parse(jwtSettings["RefreshTokenExpiryDays"]))
+                ExpiresAt = DateTime.UtcNow.AddDays(double.Parse(jwtSettings["RefreshTokenExpiryDays"] ?? "7"))
             };
             _db.RefreshTokens.Add(refresh);
             await _db.SaveChangesAsync();
