@@ -25,7 +25,7 @@ jobs:
         run: dotnet restore src/FlexiRent.Api/FlexiRent.Api.csproj
 
       - name: Build
-        run: dotnet build --no-restore -c Release
+        run: dotnet build src/FlexiRent.Api/FlexiRent.Api.csproj --no-restore -c Release
 
       - name: Run unit tests
         run: dotnet test --no-build -c Release --verbosity normal
