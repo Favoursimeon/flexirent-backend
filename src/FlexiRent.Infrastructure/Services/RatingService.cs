@@ -11,8 +11,8 @@ namespace FlexiRent.Infrastructure.Services
 
     public class RatingService : IRatingService
     {
-        private readonly ApplicationDbContext _db;
-        public RatingService(ApplicationDbContext db) { _db = db; }
+        private readonly AppDbContext _db;
+        public RatingService(AppDbContext db) { _db = db; }
 
         public async Task<double> GetAverageAsync(string targetType, Guid targetId)
         {

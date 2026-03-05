@@ -24,13 +24,13 @@ namespace FlexiRent.Infrastructure.Services
     {
         private readonly IGenericRepository<User> _users;
         private readonly IGenericRepository<RefreshToken> _refreshTokens;
-        private readonly ApplicationDbContext _db;
+        private readonly AppDbContext _db;
         private readonly IConfiguration _config;
         private readonly IEmailService _emailService;
 
         public AuthService(IGenericRepository<User> users,
             IGenericRepository<RefreshToken> refreshTokens,
-            ApplicationDbContext db,
+            AppDbContext db,
             IConfiguration config,
             IEmailService emailService)
         {

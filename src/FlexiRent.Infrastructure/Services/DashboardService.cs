@@ -12,8 +12,8 @@ namespace FlexiRent.Infrastructure.Services
 
     public class DashboardService : IDashboardService
     {
-        private readonly ApplicationDbContext _db;
-        public DashboardService(ApplicationDbContext db) { _db = db; }
+        private readonly AppDbContext _db;
+        public DashboardService(AppDbContext db) { _db = db; }
 
         public Task<object> GetAdminStatsAsync()
         {

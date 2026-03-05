@@ -38,7 +38,7 @@ namespace FlexiRent.Api.Controllers
         }
 
         [HttpGet("user/{userId}")]
-        public async Task<IActionResult> ByUser(Guid userId, [FromServices] ApplicationDbContext db)
+        public async Task<IActionResult> ByUser(Guid userId, [FromServices] AppDbContext db)
         {
             var folders = await db.DocumentFolders.Where(f => f.OwnerId == userId).ToListAsync();
             var folderIds = folders.Select(f => f.Id).ToList();
@@ -48,7 +48,7 @@ namespace FlexiRent.Api.Controllers
 
         [HttpDelete("{id}")]
         [Authorize]
-        public async Task<IActionResult> Delete(Guid id, [FromServices] ApplicationDbContext db)
+        public async Task<IActionResult> Delete(Guid id, [FromServices] AppDbContext db)
         {
             var doc = await _repo.GetAsync(id);
             if (doc == null) return NotFound();

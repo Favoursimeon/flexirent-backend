@@ -3,9 +3,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FlexiRent.Infrastructure
 {
-    public class ApplicationDbContext : DbContext
+    public class AppDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> opts) : base(opts) { }
+        public AppDbContext(DbContextOptions<AppDbContext> opts) : base(opts) { }
 
         public DbSet<User> Users { get; set; }
         public DbSet<UserRole> UserRoles { get; set; }
