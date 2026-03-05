@@ -4,7 +4,7 @@ namespace FlexiRent.Infrastructure
 {
     public static class SeedData
     {
-        public static async Task InitializeAsync(ApplicationDbContext db, IServiceProvider services)
+        public static async Task InitializeAsync(AppDbContext db, IServiceProvider services)
         {
             // Add seed data if necessary
             await Task.CompletedTask;

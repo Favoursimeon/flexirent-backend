@@ -10,8 +10,8 @@ namespace FlexiRent.Api.Controllers
     [Route("api/v1/search")]
     public class SearchController : ControllerBase
     {
-        private readonly ApplicationDbContext _db;
-        public SearchController(ApplicationDbContext db) { _db = db; }
+        private readonly AppDbContext _db;
+        public SearchController(AppDbContext db) { _db = db; }
 
         [HttpGet("properties")]
         public async Task<IActionResult> SearchProperties([FromQuery] string q, decimal? minPrice = null, decimal? maxPrice = null, int skip = 0, int take = 20)

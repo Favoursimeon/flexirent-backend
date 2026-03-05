@@ -28,7 +28,7 @@ jobs:
         run: dotnet build src/FlexiRent.Api/FlexiRent.Api.csproj --no-restore -c Release
 
       - name: Run unit tests
-        run: dotnet test src/FlexiRent.Api/FlexiRent.Api.csproj  --no-build -c Release --verbosity normal
+        run: dotnet test src/FlexiRent.Api/FlexiRent.Api.csproj --no-build -c Release --verbosity normal
 
       - name: Publish artifacts
         if: success()

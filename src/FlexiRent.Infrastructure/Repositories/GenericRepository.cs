@@ -17,9 +17,9 @@ namespace FlexiRent.Infrastructure.Repositories
 
     public class GenericRepository<T> : IGenericRepository<T> where T : class
     {
-        protected readonly ApplicationDbContext _db;
+        protected readonly AppDbContext _db;
         protected readonly DbSet<T> _dbSet;
-        public GenericRepository(ApplicationDbContext db)
+        public GenericRepository(AppDbContext db)
         {
             _db = db;
             _dbSet = db.Set<T>();

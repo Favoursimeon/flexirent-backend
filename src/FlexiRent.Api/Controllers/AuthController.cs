@@ -51,7 +51,7 @@ namespace FlexiRent.Api.Controllers
         }
 
         [HttpGet("verify-email/{token}")]
-        public async Task<IActionResult> VerifyEmail(string token, [FromServices] ApplicationDbContext db)
+        public async Task<IActionResult> VerifyEmail(string token, [FromServices] AppDbContext db)
         {
             var v = await db.UserVerifications.FirstOrDefaultAsync(x => x.VerificationToken == token);
             if (v == null) return NotFound();
@@ -71,7 +71,7 @@ namespace FlexiRent.Api.Controllers
         }
 
         [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword([FromBody] Dictionary<string,string> body, [FromServices] ApplicationDbContext db)
+        public async Task<IActionResult> ResetPassword([FromBody] Dictionary<string,string> body, [FromServices] AppDbContext db)
         {
             // implement reset using token
             return Ok(new { message = "password reset (stub)" });

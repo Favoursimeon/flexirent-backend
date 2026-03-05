@@ -1,3 +1,4 @@
+using System;
 using System.Text;
 using AutoMapper;
 using FlexiRent.Api.Middleware;
@@ -18,9 +19,13 @@ var configuration = builder.Configuration;
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
+builder.Services.AddMemoryCache();
+
+// Swagger
 builder.Services.AddSwaggerGen(opts =>
 {
     opts.SwaggerDoc("v1", new OpenApiInfo { Title = "FlexiRent API", Version = "v1" });
+
     var jwtScheme = new OpenApiSecurityScheme
     {
         Scheme = "bearer",
@@ -28,11 +33,28 @@ builder.Services.AddSwaggerGen(opts =>
         Name = "Authorization",
         In = ParameterLocation.Header,
         Type = SecuritySchemeType.Http,
-        Description = "Bearer token"
+        Description = "Enter your JWT bearer token",
+        Reference = new OpenApiReference
+        {
+            Type = ReferenceType.SecurityScheme,
+            Id = "Bearer"
+        }
     };
+
     opts.AddSecurityDefinition("Bearer", jwtScheme);
-    opts.AddSecurityRequirement(new OpenApiSecurityRequirement {
-        { jwtScheme, Array.Empty<string>() }
+    opts.AddSecurityRequirement(new OpenApiSecurityRequirement
+    {
+        {
+            new OpenApiSecurityScheme
+            {
+                Reference = new OpenApiReference
+                {
+                    Type = ReferenceType.SecurityScheme,
+                    Id = "Bearer"
+                }
+            },
+            Array.Empty<string>()
+        }
     });
 });
 
@@ -40,51 +62,63 @@ builder.Services.AddSwaggerGen(opts =>
 builder.Services.AddCors(options =>
 {
     options.AddDefaultPolicy(policy =>
-        policy.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
+        policy
+            .WithOrigins(
+                configuration.GetSection("AllowedOrigins").Get<string[]>()
+                ?? throw new InvalidOperationException("AllowedOrigins is not configured."))
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials()); // Required for SignalR
 });
 
-// EF Core + MySQL
-builder.Services.AddDbContext<ApplicationDbContext>(opt =>
-    opt.UseMySql(configuration.GetConnectionString("DefaultConnection"),
-        ServerVersion.AutoDetect(configuration.GetConnectionString("DefaultConnection"))));
+// EF Core + PostgreSQL
+builder.Services.AddDbContext<AppDbContext>(options =>
+    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")
+        ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.")));
 
 // AutoMapper
-var mapperConfig = new MapperConfiguration(mc => { mc.AddProfile(new MappingProfile()); });
+var mapperConfig = new MapperConfiguration(mc => mc.AddProfile(new MappingProfile()));
 builder.Services.AddSingleton(mapperConfig.CreateMapper());
 
 // Infrastructure services
 builder.Services.AddInfrastructureServices();
 builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
-
-// Replace console email with SendGridEmailService (requires SendGrid:ApiKey in config)
 builder.Services.AddScoped<IEmailService, SendGridEmailService>();
 
-// Authentication - JWT
+// JWT Authentication
 var jwtSettings = configuration.GetSection("JwtSettings");
-var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"]));
+var secret = jwtSettings["Secret"]
+    ?? throw new InvalidOperationException("JwtSettings:Secret is not configured.");
+var signingKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secret));
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-}).AddJwtBearer(options =>
+})
+.AddJwtBearer(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
         ValidateAudience = true,
-        ValidIssuer = jwtSettings["Issuer"],
-        ValidAudience = jwtSettings["Audience"],
+        ValidIssuer = jwtSettings["Issuer"]
+            ?? throw new InvalidOperationException("JwtSettings:Issuer is not configured."),
+        ValidAudience = jwtSettings["Audience"]
+            ?? throw new InvalidOperationException("JwtSettings:Audience is not configured."),
         IssuerSigningKey = signingKey,
         ValidateLifetime = true,
+        ClockSkew = TimeSpan.Zero // Remove default 5-min skew tolerance
     };
-    // Allow SignalR to send access token via query string "access_token"
+
+    // Allow SignalR to receive JWT via query string
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/hubs/chat")))
+            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
             {
                 context.Token = accessToken;
             }
@@ -93,13 +127,10 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
-// Rate limiting - minimal example via middleware
-builder.Services.AddMemoryCache();
-
-// App
+// Build app
 var app = builder.Build();
 
-// Middleware
+// Middleware pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<RequestResponseLoggingMiddleware>();
 app.UseHttpsRedirection();
@@ -107,8 +138,8 @@ app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Swagger
-if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableSwagger"))
+// Swagger (dev or explicitly enabled)
+if (app.Environment.IsDevelopment() || configuration.GetValue<bool>("EnableSwagger"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "FlexiRent API v1"));
@@ -117,12 +148,19 @@ if (app.Environment.IsDevelopment() || app.Configuration.GetValue<bool>("EnableS
 app.MapControllers();
 app.MapHub<FlexiRent.Api.Hubs.ChatHub>("/hubs/chat");
 
-// Ensure DB created at startup for dev (use migrations in prod)
-using (var scope = app.Services.CreateScope())
+// Run DB migrations and seeding
+try
 {
-    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    db.Database.Migrate();
+    await using var scope = app.Services.CreateAsyncScope();
+    var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+    await db.Database.MigrateAsync();
     await SeedData.InitializeAsync(db, scope.ServiceProvider);
+}
+catch (Exception ex)
+{
+    var logger = app.Services.GetRequiredService<ILogger<Program>>();
+    logger.LogCritical(ex, "Database migration or seeding failed. Application cannot start.");
+    throw;
 }
 
 app.Run();
