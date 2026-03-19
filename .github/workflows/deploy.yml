@@ -12,7 +12,7 @@ env:
 
 jobs:
   # ── Job 1: Run tests ────────────────────────────────────────────────────────
-  test:
+ test:
     name: Test
     runs-on: ubuntu-latest
 
@@ -40,13 +40,13 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore src/FlexiRent.Api/FlexiRent.Api.csproj
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build src/FlexiRent.Api/FlexiRent.Api.csproj --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal
+        run: dotnet test src/Tests/FlexiRent.Tests/FlexiRent.Tests.csproj --no-build --configuration Release --verbosity normal
         env:
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=flexirent_test;Username=postgres;Password=postgres;"
           JwtSettings__Secret: "TestSecretKeyThatIsAtLeast32CharsLong!"
@@ -54,7 +54,6 @@ jobs:
           JwtSettings__Audience: "FlexiRentClients"
           SeedData__AdminPassword: "Admin@1234!"
           Redis__ConnectionString: "localhost:6379"
-
   # ── Job 2: Build and push Docker image ─────────────────────────────────────
   build:
     name: Build & Push Image
