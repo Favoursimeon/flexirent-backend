@@ -105,7 +105,6 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     environment:
       name: production
-      url: https://${{ secrets.SERVER_HOST }}
 
     steps:
       - uses: actions/checkout@v4
