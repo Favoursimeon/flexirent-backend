@@ -39,13 +39,13 @@ jobs:
           dotnet-version: 8.0.x
 
       - name: Restore
-        run: dotnet restore
+        run: dotnet restore src/FlexiRent.sln
 
       - name: Build
-        run: dotnet build --no-restore --configuration Release
+        run: dotnet build src/FlexiRent.sln --no-restore --configuration Release
 
       - name: Test
-        run: dotnet test --no-build --configuration Release --verbosity normal
+        run: dotnet test src/FlexiRent.sln --no-build --configuration Release --verbosity normal
         env:
           ConnectionStrings__DefaultConnection: "Host=localhost;Port=5432;Database=flexirent_test;Username=postgres;Password=postgres;"
           JwtSettings__Secret: "TestSecretKeyThatIsAtLeast32CharsLong!"
