@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FlexiRent.Domain.Enums;
 
 namespace FlexiRent.Application.DTOs
 {
@@ -6,8 +7,9 @@ namespace FlexiRent.Application.DTOs
     {
         [Required, EmailAddress] public string Email { get; set; }
         [Required, MinLength(6)] public string Password { get; set; }
-        [Required] public string FullName { get; set; }
-        [Required] public string Role { get; set; } // Admin|Client|Vendor|ServiceProvider
+        [Required] public string FirstName { get; set; }
+        [Required] public string LastName { get; set; }
+        public AppRole Role { get; set; } = AppRole.User;
     }
 
     public class LoginRequest

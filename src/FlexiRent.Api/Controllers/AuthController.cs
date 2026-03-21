@@ -1,80 +1,67 @@
 using FlexiRent.Application.DTOs;
-using FlexiRent.Infrastructure;
 using FlexiRent.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 
-namespace FlexiRent.Api.Controllers
+namespace FlexiRent.Api.Controllers;
+
+[ApiController]
+[Route("api/auth")]
+public class AuthController : ControllerBase
 {
-    [ApiController]
-    [Route("api/v1/[controller]")]
-    public class AuthController : ControllerBase
+    private readonly IAuthService _authService;
+
+    public AuthController(IAuthService authService)
     {
-        private readonly IAuthService _auth;
-        public AuthController(IAuthService auth) { _auth = auth; }
+        _authService = authService;
+    }
 
-        [HttpPost("register")]
-        public async Task<IActionResult> Register([FromBody] RegisterRequest req)
-        {
-            var resp = await _auth.RegisterAsync(req);
-            return Ok(resp);
-        }
+    [HttpPost("register")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Register([FromBody] RegisterRequest req)
+    {
+        var result = await _authService.RegisterAsync(req);
+        return Ok(result);
+    }
 
-        [HttpPost("login")]
-        public async Task<IActionResult> Login([FromBody] LoginRequest req)
-        {
-            var resp = await _auth.LoginAsync(req);
-            return Ok(resp);
-        }
+    [HttpPost("login")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Login([FromBody] LoginRequest req)
+    {
+        var result = await _authService.LoginAsync(req);
+        return Ok(result);
+    }
 
-        [HttpPost("refresh")]
-        public async Task<IActionResult> Refresh([FromBody] RefreshRequest req)
-        {
-            var resp = await _auth.RefreshAsync(req.RefreshToken);
-            return Ok(resp);
-        }
+    [HttpPost("refresh")]
+    [AllowAnonymous]
+    public async Task<IActionResult> Refresh([FromBody] RefreshRequest req)
+    {
+        var result = await _authService.RefreshAsync(req.RefreshToken);
+        return Ok(result);
+    }
 
-        [Authorize]
-        [HttpPost("logout")]
-        public async Task<IActionResult> Logout([FromBody] RefreshRequest req)
-        {
-            await _auth.LogoutAsync(req.RefreshToken);
-            return NoContent();
-        }
+    [HttpPost("logout")]
+    [Authorize]
+    public async Task<IActionResult> Logout([FromBody] RefreshRequest req)
+    {
+        await _authService.LogoutAsync(req.RefreshToken);
+        return NoContent();
+    }
 
-        [HttpPost("resend-verification")]
-        public IActionResult ResendVerification([FromBody] Dictionary<string,string> data)
-        {
-            // Implement resend flow via IEmailService; stubbed
-            return Ok(new { message = "verification resent (stub)" });
-        }
+    [HttpPost("forgot-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ForgotPassword([FromBody] PasswordResetRequestDto req)
+    {
+        await _authService.RequestPasswordResetAsync(req);
+        // Always return 200 — never reveal if email exists
+        return Ok(new { message = "If that email is registered, a reset link has been sent." });
+    }
 
-        [HttpGet("verify-email/{token}")]
-        public async Task<IActionResult> VerifyEmail(string token, [FromServices] AppDbContext db)
-        {
-            var v = await db.UserVerifications.FirstOrDefaultAsync(x => x.VerificationToken == token);
-            if (v == null) return NotFound();
-            v.IsVerified = true;
-            v.VerifiedAt = DateTime.UtcNow;
-            var user = await db.Users.FindAsync(v.UserId);
-            if (user != null) user.EmailConfirmed = true;
-            await db.SaveChangesAsync();
-            return Ok(new { message = "email verified" });
-        }
-
-        [HttpPost("forgot-password")]
-        public IActionResult ForgotPassword([FromBody] Dictionary<string, string> body)
-        {
-            // send reset token via email
-            return Ok(new { message = "reset email sent (stub)" });
-        }
-
-        [HttpPost("reset-password")]
-        public async Task<IActionResult> ResetPassword([FromBody] Dictionary<string,string> body, [FromServices] AppDbContext db)
-        {
-            // implement reset using token
-            return Ok(new { message = "password reset (stub)" });
-        }
+    [HttpPost("reset-password")]
+    [AllowAnonymous]
+    public async Task<IActionResult> ResetPassword([FromBody] PasswordResetConfirmDto req)
+    {
+        await _authService.ConfirmPasswordResetAsync(req);
+        return Ok(new { message = "Password has been reset successfully. Please log in." });
     }
 }

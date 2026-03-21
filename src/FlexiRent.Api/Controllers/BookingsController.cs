@@ -1,53 +1,104 @@
+using FlexiRent.Application.DTOs;
 using FlexiRent.Domain.Entities;
-using FlexiRent.Infrastructure.Repositories;
+using FlexiRent.Infrastructure;
+using FlexiRent.Infrastructure.Persistence;
+using FlexiRent.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+namespace FlexiRent.Api.Controllers;
 
-namespace FlexiRent.Api.Controllers
+[ApiController]
+[Route("api/bookings")]
+[Authorize]
+public class BookingsController : ControllerBase
 {
-    [ApiController]
-    [Route("api/v1/bookings")]
-    public class BookingsController : ControllerBase
+    private readonly IBookingService _bookingService;
+    private readonly ICurrentUserService _currentUser;
+
+    public BookingsController(IBookingService bookingService, ICurrentUserService currentUser)
     {
-        private readonly IGenericRepository<Booking> _repo;
-        public BookingsController(IGenericRepository<Booking> repo) { _repo = repo; }
+        _bookingService = bookingService;
+        _currentUser = currentUser;
+    }
 
-        [HttpGet]
-        public async Task<IActionResult> GetAll(int skip = 0, int take = 50) => Ok(await _repo.GetAllAsync(skip, take));
+    [HttpPost]
+    public async Task<IActionResult> CreateBooking([FromBody] CreateBookingDto dto)
+    {
+        var result = await _bookingService.CreateBookingAsync(_currentUser.UserId, dto);
+        return CreatedAtAction(nameof(GetBookings), new { id = result.Id }, result);
+    }
 
-        [HttpGet("user/{userId}")]
-        public async Task<IActionResult> ByUser(Guid userId, int skip = 0, int take = 50) =>
-            Ok(await _repo.FindAsync(b => b.UserId == userId, skip, take));
+    [HttpGet]
+    public async Task<IActionResult> GetBookings([FromQuery] BookingFilterDto filter)
+    {
+        var result = await _bookingService.GetBookingsAsync(_currentUser.UserId, filter);
+        return Ok(result);
+    }
 
-        [HttpGet("provider/{providerId}")]
-        public async Task<IActionResult> ByProvider(Guid providerId, int skip = 0, int take = 50) =>
-            Ok(await _repo.FindAsync(b => b.ProviderId == providerId, skip, take));
+    [HttpPut("{id}/status")]
+    public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] UpdateBookingStatusDto dto)
+    {
+        var result = await _bookingService.UpdateStatusAsync(id, _currentUser.UserId, dto);
+        return Ok(result);
+    }
 
-        [HttpGet("status/{status}")]
-        public async Task<IActionResult> ByStatus(string status, int skip = 0, int take = 50) =>
-            Ok(await _repo.FindAsync(b => b.Status == status, skip, take));
+    [HttpPut("{id}/cancel")]
+    public async Task<IActionResult> CancelBooking(Guid id, [FromBody] CancelBookingDto dto)
+    {
+        var result = await _bookingService.CancelBookingAsync(id, _currentUser.UserId, dto);
+        return Ok(result);
+    }
 
-        [HttpPost]
-        [Authorize]
-        public async Task<IActionResult> Create([FromBody] Booking b)
+    [HttpGet("{id}/messages")]
+    public async Task<IActionResult> GetMessages(
+    Guid id,
+    [FromServices] AppDbContext db,
+    [FromQuery] int pageSize = 50,
+    [FromQuery] Guid? cursor = null)
+    {
+        var userId = _currentUser.UserId;
+
+        var booking = await db.Bookings
+            .FirstOrDefaultAsync(b =>
+                b.Id == id &&
+                (b.UserId == userId || b.ProviderId == userId));
+
+        if (booking is null) return Forbid();
+
+        var query = db.BookingMessages
+            .Where(m => m.BookingId == id)
+            .OrderByDescending(m => m.SentAt)
+            .AsQueryable();
+
+        if (cursor.HasValue)
         {
-            b.Id = Guid.NewGuid();
-            b.CreatedAt = DateTime.UtcNow;
-            await _repo.AddAsync(b);
-            return CreatedAtAction(nameof(GetAll), new { id = b.Id }, b);
+            var cursorDate = await db.BookingMessages
+                .Where(m => m.Id == cursor.Value)
+                .Select(m => m.SentAt)
+                .FirstOrDefaultAsync();
+
+            if (cursorDate != default)
+                query = query.Where(m => m.SentAt < cursorDate);
         }
 
-        [HttpPatch("{id}")]
-        [Authorize]
-        public async Task<IActionResult> Patch(Guid id, [FromBody] Booking patch)
+        var items = await query.Take(pageSize + 1).ToListAsync();
+        var hasMore = items.Count > pageSize;
+        if (hasMore) items.RemoveAt(items.Count - 1);
+
+        return Ok(new
         {
-            var existing = await _repo.GetAsync(id);
-            if (existing == null) return NotFound();
-            existing.Status = patch.Status ?? existing.Status;
-            existing.StartAt = patch.StartAt == default ? existing.StartAt : patch.StartAt;
-            existing.EndAt = patch.EndAt == default ? existing.EndAt : patch.EndAt;
-            await _repo.UpdateAsync(existing);
-            return Ok(existing);
-        }
+            items = items.Select(m => new
+            {
+                id = m.Id,
+                bookingId = m.BookingId,
+                senderId = m.SenderId,
+                body = m.Body,
+                isRead = m.IsRead,
+                sentAt = m.SentAt
+            }),
+            nextCursor = hasMore ? items.Last().Id : (Guid?)null,
+            hasMore
+        });
     }
 }

@@ -1,155 +1,210 @@
-using AutoMapper;
-using BCrypt.Net;
-using FlexiRent.Application.DTOs;
+﻿using FlexiRent.Application.DTOs;
 using FlexiRent.Domain.Entities;
-using FlexiRent.Infrastructure.Repositories;
+using FlexiRent.Domain.Enums;
+using FlexiRent.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
-using System.Security.Claims;
-using System.Text;
+using System.Security.Cryptography;
 
-namespace FlexiRent.Infrastructure.Services
+namespace FlexiRent.Infrastructure.Services;
+
+public interface IAuthService
 {
-    public interface IAuthService
+    Task<AuthResponse> RegisterAsync(RegisterRequest req);
+    Task<AuthResponse> LoginAsync(LoginRequest req);
+    Task<AuthResponse> RefreshAsync(string refreshToken);
+    Task LogoutAsync(string refreshToken);
+    Task RequestPasswordResetAsync(PasswordResetRequestDto req);
+    Task ConfirmPasswordResetAsync(PasswordResetConfirmDto req);
+}
+
+public class AuthService : IAuthService
+{
+    private readonly AppDbContext _db;
+    private readonly IJwtService _jwtService;
+    private readonly IEmailService _emailService;
+
+    public AuthService(AppDbContext db, IJwtService jwtService, IEmailService emailService)
     {
-        Task<AuthResponse> RegisterAsync(RegisterRequest req);
-        Task<AuthResponse> LoginAsync(LoginRequest req);
-        Task<AuthResponse> RefreshAsync(string refreshToken);
-        Task LogoutAsync(string refreshToken);
+        _db = db;
+        _jwtService = jwtService;
+        _emailService = emailService;
     }
 
-    public class AuthService : IAuthService
+    public async Task<AuthResponse> RegisterAsync(RegisterRequest req)
     {
-        private readonly IGenericRepository<User> _users;
-        private readonly IGenericRepository<RefreshToken> _refreshTokens;
-        private readonly AppDbContext _db;
-        private readonly IConfiguration _config;
-        private readonly IEmailService _emailService;
+        if (await _db.Users.AnyAsync(u => u.Email == req.Email))
+            throw new ApplicationException("Email already in use.");
 
-        public AuthService(IGenericRepository<User> users,
-            IGenericRepository<RefreshToken> refreshTokens,
-            AppDbContext db,
-            IConfiguration config,
-            IEmailService emailService)
+        var user = new User
         {
-            _users = users;
-            _refreshTokens = refreshTokens;
-            _db = db;
-            _config = config;
-            _emailService = emailService;
-        }
+            Id = Guid.NewGuid(),
+            Email = req.Email,
+            PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
+            EmailConfirmed = false,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        };
 
-        public async Task<AuthResponse> RegisterAsync(RegisterRequest req)
+        _db.Users.Add(user);
+
+        _db.UserRoles.Add(new UserRole
         {
-            if (await _db.Users.AnyAsync(u => u.Email == req.Email))
-                throw new ApplicationException("Email already in use");
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Role = req.Role,
+            AssignedAt = DateTime.UtcNow
+        });
 
-            var user = new User
-            {
-                Email = req.Email,
-                PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.Password),
-                EmailConfirmed = false,
-                CreatedAt = DateTime.UtcNow
-            };
-            _db.Users.Add(user);
-            await _db.SaveChangesAsync();
-
-            // assign role
-            var role = new UserRole { UserId = user.Id, Role = req.Role };
-            _db.UserRoles.Add(role);
-            _db.Profiles.Add(new FlexiRent.Domain.Entities.Profile { UserId = user.Id, FullName = req.FullName });
-            // create verification token
-            var verification = new UserVerification
-            {
-                UserId = user.Id,
-                VerificationToken = Guid.NewGuid().ToString()
-            };
-            _db.UserVerifications.Add(verification);
-            await _db.SaveChangesAsync();
-
-            // Send email (SendGrid)
-            await _emailService.SendEmailAsync(user.Email, "Verify your account",
-                $"Use token: {verification.VerificationToken}");
-
-            return await GenerateTokensForUserAsync(user);
-        }
-
-        public async Task<AuthResponse> LoginAsync(LoginRequest req)
+        _db.Profiles.Add(new Profile
         {
-            var user = await _db.Users.Include(u => u.Roles).FirstOrDefaultAsync(u => u.Email == req.Email);
-            if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
-                throw new ApplicationException("Invalid credentials");
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            FirstName = req.FirstName,
+            LastName = req.LastName,
+            CreatedAt = DateTime.UtcNow
+        });
 
-            return await GenerateTokensForUserAsync(user);
-        }
-
-        public async Task<AuthResponse> RefreshAsync(string refreshToken)
+        var verification = new UserVerification
         {
-            var tokenEntity = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == refreshToken && !t.Revoked);
-            if (tokenEntity == null || tokenEntity.ExpiresAt < DateTime.UtcNow)
-                throw new ApplicationException("Invalid refresh token");
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            VerificationToken = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
+            IsUsed = false,
+            ExpiresAt = DateTime.UtcNow.AddHours(24),
+            CreatedAt = DateTime.UtcNow
+        };
 
-            var user = await _db.Users.FindAsync(tokenEntity.UserId);
-            if (user == null) throw new ApplicationException("User not found");
+        _db.UserVerifications.Add(verification);
+        await _db.SaveChangesAsync();
 
-            // Revoke old refresh token and issue new
-            tokenEntity.Revoked = true;
-            await _db.SaveChangesAsync();
+        await _emailService.SendEmailAsync(
+            user.Email,
+            "Verify your FlexiRent account",
+            $"Your verification token: {verification.VerificationToken}\n\nThis token expires in 24 hours."
+        );
 
-            return await GenerateTokensForUserAsync(user);
-        }
-
-        public async Task LogoutAsync(string refreshToken)
-        {
-            var tokenEntity = await _db.RefreshTokens.FirstOrDefaultAsync(t => t.Token == refreshToken);
-            if (tokenEntity != null)
-            {
-                tokenEntity.Revoked = true;
-                await _db.SaveChangesAsync();
-            }
-        }
-
-        private async Task<AuthResponse> GenerateTokensForUserAsync(User user)
-        {
-            var jwtSettings = _config.GetSection("JwtSettings");
-            var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSettings["Secret"] ?? throw new InvalidOperationException("JWT Secret is not configured")));
-            var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
-
-            var roles = await _db.UserRoles.Where(r => r.UserId == user.Id).Select(r => r.Role).ToListAsync();
-            var claims = new List<Claim> {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
-                new Claim(JwtRegisteredClaimNames.Email, user.Email)
-            };
-            claims.AddRange(roles.Select(r => new Claim(ClaimTypes.Role, r)));
-
-            var token = new JwtSecurityToken(
-                issuer: jwtSettings["Issuer"],
-                audience: jwtSettings["Audience"],
-                claims: claims,
-                expires: DateTime.UtcNow.AddMinutes(double.Parse(jwtSettings["AccessTokenExpiryMinutes"] ?? "60")),
-                signingCredentials: creds
-            );
-
-            var encodedToken = new JwtSecurityTokenHandler().WriteToken(token);
-
-            // Create refresh token
-            var refresh = new RefreshToken
-            {
-                UserId = user.Id,
-                Token = Guid.NewGuid().ToString(),
-                ExpiresAt = DateTime.UtcNow.AddDays(double.Parse(jwtSettings["RefreshTokenExpiryDays"] ?? "7"))
-            };
-            _db.RefreshTokens.Add(refresh);
-            await _db.SaveChangesAsync();
-
-            return new AuthResponse
-            {
-                AccessToken = encodedToken,
-                RefreshToken = refresh.Token,
-                ExpiresAt = token.ValidTo
-            };
-        }
+        return await BuildAuthResponseAsync(user);
     }
+
+    public async Task<AuthResponse> LoginAsync(LoginRequest req)
+    {
+        var user = await _db.Users
+            .Include(u => u.Roles)
+            .FirstOrDefaultAsync(u => u.Email == req.Email);
+
+        if (user == null || !BCrypt.Net.BCrypt.Verify(req.Password, user.PasswordHash))
+            throw new ApplicationException("Invalid email or password.");
+
+        if (!user.IsActive)
+            throw new ApplicationException("This account has been deactivated.");
+
+        return await BuildAuthResponseAsync(user);
+    }
+
+    public async Task<AuthResponse> RefreshAsync(string refreshToken)
+    {
+        var tokenEntity = await _jwtService.GetValidRefreshTokenAsync(refreshToken);
+
+        if (tokenEntity is null)
+            throw new ApplicationException("Invalid or expired refresh token. Please log in again.");
+
+        if (!tokenEntity.User.IsActive)
+            throw new ApplicationException("This account has been deactivated.");
+
+        await _jwtService.RevokeRefreshTokenAsync(refreshToken);
+
+        return await BuildAuthResponseAsync(tokenEntity.User);
+    }
+
+    public async Task LogoutAsync(string refreshToken)
+    {
+        await _jwtService.RevokeRefreshTokenAsync(refreshToken);
+    }
+
+    private async Task<AuthResponse> BuildAuthResponseAsync(User user)
+    {
+        var (accessToken, expiresAt) = await _jwtService.GenerateAccessTokenAsync(user);
+        var refreshToken = await _jwtService.GenerateRefreshTokenAsync(user.Id);
+
+        return new AuthResponse
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresAt = expiresAt
+        };
+    }
+
+    public async Task RequestPasswordResetAsync(PasswordResetRequestDto req)
+    {
+        var user = await _db.Users
+            .FirstOrDefaultAsync(u => u.Email == req.Email);
+
+        // Always return success — never reveal whether email exists
+        if (user is null || !user.IsActive) return;
+
+        // Invalidate any existing unused tokens for this user
+        var existingTokens = await _db.PasswordResetTokens
+            .Where(t => t.UserId == user.Id && !t.IsUsed && t.ExpiresAt > DateTime.UtcNow)
+            .ToListAsync();
+
+        foreach (var t in existingTokens)
+            t.IsUsed = true;
+
+        var resetToken = new PasswordResetToken
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Token = Convert.ToBase64String(RandomNumberGenerator.GetBytes(64)),
+            IsUsed = false,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(30),
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _db.PasswordResetTokens.Add(resetToken);
+        await _db.SaveChangesAsync();
+
+        await _emailService.SendEmailAsync(
+            user.Email,
+            "Reset your FlexiRent password",
+            $"Use the following token to reset your password:\n\n{resetToken.Token}\n\nThis token expires in 30 minutes.\n\nIf you did not request a password reset, please ignore this email."
+        );
+    }
+
+    public async Task ConfirmPasswordResetAsync(PasswordResetConfirmDto req)
+    {
+        if (req.NewPassword != req.ConfirmPassword)
+            throw new ApplicationException("Passwords do not match.");
+
+        var tokenEntity = await _db.PasswordResetTokens
+            .Include(t => t.User)
+            .FirstOrDefaultAsync(t => t.Token == req.Token && !t.IsUsed);
+
+        if (tokenEntity is null)
+            throw new ApplicationException("Invalid or already used reset token.");
+
+        if (tokenEntity.ExpiresAt < DateTime.UtcNow)
+        {
+            tokenEntity.IsUsed = true;
+            await _db.SaveChangesAsync();
+            throw new ApplicationException("Reset token has expired. Please request a new one.");
+        }
+
+        // Update password and mark token used
+        tokenEntity.User.PasswordHash = BCrypt.Net.BCrypt.HashPassword(req.NewPassword);
+        tokenEntity.User.UpdatedAt = DateTime.UtcNow;
+        tokenEntity.IsUsed = true;
+
+        // Revoke all active refresh tokens — force re-login everywhere
+        var activeRefreshTokens = await _db.RefreshTokens
+            .Where(t => t.UserId == tokenEntity.UserId && !t.Revoked)
+            .ToListAsync();
+
+        foreach (var t in activeRefreshTokens)
+            t.Revoked = true;
+
+        await _db.SaveChangesAsync();
+    }
+
+
 }
