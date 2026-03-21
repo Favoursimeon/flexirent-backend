@@ -1,6 +1,14 @@
-bin/
-obj/
-.vs/
-uploads/
-appsettings.*.json
-**/*.user
+# Secrets
+.env
+appsettings.Development.json
+
+# Build artifacts
+**/bin/
+**/obj/
+
+# User secrets
+**/user-secrets/
+
+# OS
+.DS_Store
+Thumbs.db
