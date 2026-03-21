@@ -39,11 +39,7 @@ public class PropertyConfiguration : IEntityTypeConfiguration<Property>
             .HasMaxLength(50);
 
         // PostgreSQL tsvector for full-text search
-        builder.Property(p => p.SearchVector)
-     .IsRequired(false);
-
-        builder.HasIndex(p => p.SearchVector)
-            .HasMethod("GIN");
+       
 
         builder.HasIndex(p => p.Region);
         builder.HasIndex(p => p.Status);

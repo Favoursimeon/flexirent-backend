@@ -1,5 +1,7 @@
 using FlexiRent.Domain.Enums;
 using NpgsqlTypes;
+using System.ComponentModel.DataAnnotations.Schema;
+using NpgsqlTypes;
 
 namespace FlexiRent.Domain.Entities;
 
@@ -23,8 +25,8 @@ public class Property
     public DateTime? UpdatedAt { get; set; }
 
     // Full-text search vector (PostgreSQL tsvector)
-    public NpgsqlTsVector? SearchVector { get; set; }
-    // Navigation
+    [NotMapped]
+    public NpgsqlTsVector? SearchVector { get; set; }    // Navigation
     public User Owner { get; set; } = null!;
     public ICollection<PropertyImage> Images { get; set; } = new List<PropertyImage>();
     public ICollection<WishlistItem> WishlistItems { get; set; } = new List<WishlistItem>();

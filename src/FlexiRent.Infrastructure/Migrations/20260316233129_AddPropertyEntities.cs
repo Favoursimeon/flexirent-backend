@@ -211,6 +211,19 @@ namespace FlexiRent.Infrastructure.Migrations
                 principalTable: "Users",
                 principalColumn: "Id",
                 onDelete: ReferentialAction.Restrict);
+
+            migrationBuilder.Sql(@"
+                ALTER TABLE ""Properties"" 
+                ADD COLUMN IF NOT EXISTS ""SearchVector"" tsvector 
+                GENERATED ALWAYS AS (
+                to_tsvector('english', coalesce(""Title"", '') || ' ' || coalesce(""Description"", ''))
+                ) STORED;
+                ");
+
+            migrationBuilder.Sql(@"
+                CREATE INDEX IF NOT EXISTS ""IX_Properties_SearchVector"" 
+                ON ""Properties"" USING GIN (""SearchVector"");
+                ");
         }
 
         /// <inheritdoc />
