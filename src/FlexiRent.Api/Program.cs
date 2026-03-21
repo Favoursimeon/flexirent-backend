@@ -1,10 +1,19 @@
-using System;
 using System.Text;
+using AspNetCoreRateLimit;
 using AutoMapper;
+using FlexiRent.Api.Hubs;
 using FlexiRent.Api.Middleware;
 using FlexiRent.Application.Mappings;
+using FlexiRent.Application.Validators;
+using FlexiRent.Domain.Enums;
 using FlexiRent.Infrastructure;
+using FlexiRent.Infrastructure.Authorization;
+using FlexiRent.Infrastructure.Jobs;
+using FlexiRent.Infrastructure.Persistence;
 using FlexiRent.Infrastructure.Services;
+using FluentValidation;
+using FluentValidation.AspNetCore;
+using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -12,14 +21,28 @@ using Microsoft.OpenApi.Models;
 
 var builder = WebApplication.CreateBuilder(args);
 
+// Npgsql DateTime UTC handling
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+
 // Load config
 var configuration = builder.Configuration;
 
 // Services
 builder.Services.AddControllers();
+builder.Services.AddFluentValidationAutoValidation();
+builder.Services.AddValidatorsFromAssemblyContaining<RegisterRequestValidator>();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSignalR();
 builder.Services.AddMemoryCache();
+
+// Rate limiting
+builder.Services.Configure<IpRateLimitOptions>(
+    builder.Configuration.GetSection("IpRateLimiting"));
+builder.Services.AddSingleton<IIpPolicyStore, MemoryCacheIpPolicyStore>();
+builder.Services.AddSingleton<IRateLimitCounterStore, MemoryCacheRateLimitCounterStore>();
+builder.Services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+builder.Services.AddSingleton<IProcessingStrategy, AsyncKeyLockProcessingStrategy>();
+builder.Services.AddInMemoryRateLimiting();
 
 // Swagger
 builder.Services.AddSwaggerGen(opts =>
@@ -68,22 +91,15 @@ builder.Services.AddCors(options =>
                 ?? throw new InvalidOperationException("AllowedOrigins is not configured."))
             .AllowAnyHeader()
             .AllowAnyMethod()
-            .AllowCredentials()); // Required for SignalR
+            .AllowCredentials());
 });
-
-// EF Core + PostgreSQL
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseNpgsql(configuration.GetConnectionString("DefaultConnection")
-        ?? throw new InvalidOperationException("ConnectionStrings:DefaultConnection is not configured.")));
 
 // AutoMapper
 var mapperConfig = new MapperConfiguration(mc => mc.AddProfile(new MappingProfile()));
 builder.Services.AddSingleton(mapperConfig.CreateMapper());
 
 // Infrastructure services
-builder.Services.AddInfrastructureServices();
-builder.Services.AddScoped<IFileStorageService, LocalFileStorageService>();
-builder.Services.AddScoped<IEmailService, SendGridEmailService>();
+builder.Services.AddInfrastructureServices(builder.Configuration);
 
 // JWT Authentication
 var jwtSettings = configuration.GetSection("JwtSettings");
@@ -108,23 +124,49 @@ builder.Services.AddAuthentication(options =>
             ?? throw new InvalidOperationException("JwtSettings:Audience is not configured."),
         IssuerSigningKey = signingKey,
         ValidateLifetime = true,
-        ClockSkew = TimeSpan.Zero // Remove default 5-min skew tolerance
+        ClockSkew = TimeSpan.Zero
     };
 
-    // Allow SignalR to receive JWT via query string
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
         {
             var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-            if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs/chat"))
+            if (!string.IsNullOrEmpty(accessToken) &&
+                (path.StartsWithSegments("/hubs/chat") ||
+                 path.StartsWithSegments("/hubs/notifications")))
             {
                 context.Token = accessToken;
             }
             return Task.CompletedTask;
         }
     };
+});
+
+// Authorization policies
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy(PolicyConstants.RequireAdmin, policy =>
+        policy.RequireRole(AppRole.Admin.ToString()));
+
+    options.AddPolicy(PolicyConstants.RequireModerator, policy =>
+        policy.RequireRole(AppRole.Moderator.ToString()));
+
+    options.AddPolicy(PolicyConstants.RequireServiceProvider, policy =>
+        policy.RequireRole(AppRole.ServiceProvider.ToString()));
+
+    options.AddPolicy(PolicyConstants.RequireVendor, policy =>
+        policy.RequireRole(AppRole.Vendor.ToString()));
+
+    options.AddPolicy(PolicyConstants.RequireAdminOrModerator, policy =>
+        policy.RequireRole(
+            AppRole.Admin.ToString(),
+            AppRole.Moderator.ToString()));
+
+    options.AddPolicy(PolicyConstants.RequireVerifiedUser, policy =>
+        policy.RequireAuthenticatedUser()
+              .RequireClaim("email_verified", "true"));
 });
 
 // Build app
@@ -134,21 +176,92 @@ var app = builder.Build();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<RequestResponseLoggingMiddleware>();
 app.UseHttpsRedirection();
+
+// Security headers
+app.Use(async (context, next) =>
+{
+    context.Response.Headers.Append("X-Content-Type-Options", "nosniff");
+    context.Response.Headers.Append("X-Frame-Options", "DENY");
+    context.Response.Headers.Append("X-XSS-Protection", "1; mode=block");
+    context.Response.Headers.Append("Referrer-Policy", "strict-origin-when-cross-origin");
+    context.Response.Headers.Append("Permissions-Policy",
+        "camera=(), microphone=(), geolocation=()");
+
+    if (!app.Environment.IsDevelopment())
+    {
+        context.Response.Headers.Append("Strict-Transport-Security",
+            "max-age=31536000; includeSubDomains");
+        context.Response.Headers.Append("Content-Security-Policy",
+            "default-src 'self'; " +
+            "script-src 'self'; " +
+            "style-src 'self' 'unsafe-inline'; " +
+            "img-src 'self' data: https:; " +
+            "connect-src 'self' https://api.paystack.co;");
+    }
+
+    await next();
+});
+
+app.UseIpRateLimiting();
 app.UseCors();
 app.UseAuthentication();
 app.UseAuthorization();
 
-// Swagger (dev or explicitly enabled)
+// Hangfire dashboard
+if (app.Environment.IsDevelopment() || configuration.GetValue<bool>("Hangfire:Dashboard"))
+{
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        Authorization = new[] { new Hangfire.Dashboard.LocalRequestsOnlyAuthorizationFilter() }
+    });
+}
+
+// Recurring jobs
+RecurringJob.AddOrUpdate<IPaymentSchedulerJob>(
+    "process-due-payments",
+    job => job.ProcessDuePaymentsAsync(),
+    Cron.Daily);
+
+RecurringJob.AddOrUpdate<IPaymentSchedulerJob>(
+    "mark-overdue-payments",
+    job => job.MarkOverduePaymentsAsync(),
+    Cron.Daily);
+
+RecurringJob.AddOrUpdate<INotificationJob>(
+    "send-payment-reminders",
+    job => job.SendPaymentRemindersAsync(),
+    Cron.Daily(8));
+
+RecurringJob.AddOrUpdate<INotificationJob>(
+    "send-property-match-alerts",
+    job => job.SendPropertyMatchAlertsAsync(),
+    Cron.Daily(9));
+
+RecurringJob.AddOrUpdate<INotificationJob>(
+    "send-lease-expiry-alerts",
+    job => job.SendLeaseExpiryAlertsAsync(),
+    Cron.Daily(8));
+
+// Swagger
 if (app.Environment.IsDevelopment() || configuration.GetValue<bool>("EnableSwagger"))
 {
     app.UseSwagger();
     app.UseSwaggerUI(c => c.SwaggerEndpoint("/swagger/v1/swagger.json", "FlexiRent API v1"));
 }
 
-app.MapControllers();
-app.MapHub<FlexiRent.Api.Hubs.ChatHub>("/hubs/chat");
+// Health check
+app.MapGet("/health", () => Results.Ok(new
+{
+    status = "healthy",
+    timestamp = DateTime.UtcNow,
+    version = "1.0.0"
+})).AllowAnonymous();
 
-// Run DB migrations and seeding
+app.MapControllers();
+app.MapHub<ChatHub>("/hubs/chat");
+app.MapHub<NotificationHub>("/hubs/notifications");
+
+// DB migrations and seeding
 try
 {
     await using var scope = app.Services.CreateAsyncScope();

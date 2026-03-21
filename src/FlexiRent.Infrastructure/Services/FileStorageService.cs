@@ -1,50 +1,57 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
-using System;
-using System.IO;
-using System.Threading.Tasks;
 
-namespace FlexiRent.Infrastructure.Services
+namespace FlexiRent.Infrastructure.Services;
+
+public interface IFileStorageService
 {
-    public interface IFileStorageService
+    Task<string> SaveFileAsync(IFormFile file, string fileName);
+    Task<Stream> GetFileAsync(string relativePath);
+    Task DeleteFileAsync(string fileName);
+}
+
+public class LocalFileStorageService : IFileStorageService
+{
+    private readonly string _basePath;
+
+    public LocalFileStorageService(IConfiguration config)
     {
-        Task<string> SaveFileAsync(IFormFile file, string? folder = null);
-        Task<Stream> GetFileAsync(string relativePath);
-        Task DeleteFileAsync(string relativePath);
+        _basePath = config.GetValue<string>("FileStorage:BasePath") ?? "uploads";
+        if (!Directory.Exists(_basePath))
+            Directory.CreateDirectory(_basePath);
     }
 
-    public class LocalFileStorageService : IFileStorageService
+    public async Task<string> SaveFileAsync(IFormFile file, string fileName)
     {
-        private readonly string _basePath;
-        public LocalFileStorageService(IConfiguration config)
-        {
-            _basePath = config.GetValue<string>("FileStorage:BasePath") ?? "uploads";
-            if (!Directory.Exists(_basePath)) Directory.CreateDirectory(_basePath);
-        }
+        var fullPath = Path.Combine(_basePath, fileName);
+        var directory = Path.GetDirectoryName(fullPath)!;
 
-        public async Task<string> SaveFileAsync(IFormFile file, string? folder = null)
-        {
-            var folderPath = folder == null ? _basePath : Path.Combine(_basePath, folder);
-            if (!Directory.Exists(folderPath)) Directory.CreateDirectory(folderPath);
-            var fileName = $"{Guid.NewGuid()}{Path.GetExtension(file.FileName)}";
-            var fullPath = Path.Combine(folderPath, fileName);
-            using var stream = new FileStream(fullPath, FileMode.Create);
-            await file.CopyToAsync(stream);
-            return Path.GetRelativePath(Directory.GetCurrentDirectory(), fullPath).Replace("\\", "/");
-        }
+        if (!Directory.Exists(directory))
+            Directory.CreateDirectory(directory);
 
-        public Task<Stream> GetFileAsync(string relativePath)
-        {
-            var fp = Path.Combine(Directory.GetCurrentDirectory(), relativePath);
-            if (!File.Exists(fp)) throw new FileNotFoundException();
-            return Task.FromResult<Stream>(new FileStream(fp, FileMode.Open, FileAccess.Read));
-        }
+        using var stream = new FileStream(fullPath, FileMode.Create);
+        await file.CopyToAsync(stream);
 
-        public Task DeleteFileAsync(string relativePath)
-        {
-            var fp = Path.Combine(Directory.GetCurrentDirectory(), relativePath);
-            if (File.Exists(fp)) File.Delete(fp);
-            return Task.CompletedTask;
-        }
+        return Path.GetRelativePath(Directory.GetCurrentDirectory(), fullPath)
+            .Replace("\\", "/");
+    }
+
+    public Task<Stream> GetFileAsync(string relativePath)
+    {
+        var fullPath = Path.Combine(Directory.GetCurrentDirectory(), relativePath);
+        if (!File.Exists(fullPath))
+            throw new FileNotFoundException("File not found.", relativePath);
+
+        return Task.FromResult<Stream>(
+            new FileStream(fullPath, FileMode.Open, FileAccess.Read));
+    }
+
+    public Task DeleteFileAsync(string fileName)
+    {
+        var fullPath = Path.Combine(_basePath, fileName);
+        if (File.Exists(fullPath))
+            File.Delete(fullPath);
+
+        return Task.CompletedTask;
     }
 }
