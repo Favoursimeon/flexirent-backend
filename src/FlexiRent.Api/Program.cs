@@ -15,9 +15,11 @@ using FluentValidation;
 using FluentValidation.AspNetCore;
 using Hangfire;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -171,6 +173,12 @@ builder.Services.AddAuthorization(options =>
 
 // Build app
 var app = builder.Build();
+
+// Handle reverse proxy headers
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto
+});
 
 // Middleware pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
