@@ -183,7 +183,7 @@ app.UseForwardedHeaders(new ForwardedHeadersOptions
 // Middleware pipeline
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 app.UseMiddleware<RequestResponseLoggingMiddleware>();
-app.UseHttpsRedirection();
+//app.UseHttpsRedirection();
 
 // Security headers
 app.Use(async (context, next) =>
