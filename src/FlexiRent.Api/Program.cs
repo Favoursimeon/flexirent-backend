@@ -256,11 +256,15 @@ RecurringJob.AddOrUpdate<INotificationJob>(
 // Swagger
 if (app.Environment.IsDevelopment() || configuration.GetValue<bool>("EnableSwagger"))
 {
+    app.UsePathBase("/");
+
     app.UseSwaggerUI(c =>
     {
-        c.SwaggerEndpoint("/swagger/v1/swagger.json", "FlexiRent API v1");
+        c.SwaggerEndpoint("v1/swagger.json", "FlexiRent API v1");
         c.RoutePrefix = "swagger";
-    }); app.UseSwaggerUI(c =>
+    });
+    
+    app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/swagger/v1/swagger.json", "FlexiRent API v1");
         c.RoutePrefix = "swagger";
