@@ -254,7 +254,7 @@ RecurringJob.AddOrUpdate<INotificationJob>(
     Cron.Daily(8));
 
 // Swagger
-if (app.Environment.IsDevelopment() || configuration.GetValue<bool>("EnableSwagger"))
+if (true)
 {
     app.UseSwagger();
 
@@ -264,6 +264,7 @@ if (app.Environment.IsDevelopment() || configuration.GetValue<bool>("EnableSwagg
         c.RoutePrefix = "swagger";
     });
 }
+
 // Health check
 app.MapGet("/health", () => Results.Ok(new
 {
