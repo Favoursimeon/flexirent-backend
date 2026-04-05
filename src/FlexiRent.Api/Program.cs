@@ -256,7 +256,10 @@ RecurringJob.AddOrUpdate<INotificationJob>(
 // Swagger
 if (true)
 {
-    app.UseSwagger();
+    app.UseSwagger(c =>
+    {
+        c.RouteTemplate = "swagger/{documentName}/swagger.json";
+    });
 
     app.UseSwaggerUI(c =>
     {
