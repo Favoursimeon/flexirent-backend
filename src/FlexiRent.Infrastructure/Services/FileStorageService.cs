@@ -1,11 +1,12 @@
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
+using FlexiRent.Application.Models;
 
 namespace FlexiRent.Infrastructure.Services;
 
 public interface IFileStorageService
 {
-    Task<string> SaveFileAsync(IFormFile file, string fileName);
+    Task<string> SaveFileAsync(FileUpload file, string fileName);
     Task<Stream> GetFileAsync(string relativePath);
     Task DeleteFileAsync(string fileName);
 }
@@ -21,21 +22,17 @@ public class LocalFileStorageService : IFileStorageService
             Directory.CreateDirectory(_basePath);
     }
 
-    public async Task<string> SaveFileAsync(IFormFile file, string fileName)
+    public async Task<string> SaveFileAsync(FileUpload file, string fileName)
     {
         var fullPath = Path.Combine(_basePath, fileName);
         var directory = Path.GetDirectoryName(fullPath)!;
-
         if (!Directory.Exists(directory))
             Directory.CreateDirectory(directory);
-
         using var stream = new FileStream(fullPath, FileMode.Create);
-        await file.CopyToAsync(stream);
-
+        await file.Content.CopyToAsync(stream);
         return Path.GetRelativePath(Directory.GetCurrentDirectory(), fullPath)
             .Replace("\\", "/");
     }
-
     public Task<Stream> GetFileAsync(string relativePath)
     {
         var fullPath = Path.Combine(Directory.GetCurrentDirectory(), relativePath);

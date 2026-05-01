@@ -1,14 +1,16 @@
-﻿using FlexiRent.Infrastructure.Persistence;
-using FlexiRent.Infrastructure.Services;
-using FlexiRent.Infrastructure.Jobs;
+﻿using FlexiRent.Application.Interfaces;
+using FlexiRent.Application.Services;
 using FlexiRent.Infrastructure.Hubs;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Caching.StackExchangeRedis;
+using FlexiRent.Infrastructure.Jobs;
+using FlexiRent.Infrastructure.Persistence;
+using FlexiRent.Infrastructure.Services;
 using Hangfire;
 using Hangfire.PostgreSql;
+using Microsoft.AspNetCore.Http;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace FlexiRent.Infrastructure;
 
@@ -45,9 +47,21 @@ public static class DependencyInjection
         // Bookings
         services.AddScoped<IBookingService, BookingService>();
 
+        //Documents
+        services.AddScoped<IDocumentService, DocumentService>();
+
         // Payments
         services.AddHttpClient<IPaystackService, PaystackService>();
         services.AddScoped<IPaymentService, PaymentService>();
+
+        //Portfolio
+        services.AddScoped<IPortfolioService, PortfolioService>();
+
+        //Reviews
+        services.AddScoped<IReviewService, ReviewService>();
+
+        //Security
+        services.AddScoped<IAuthSecurityService, AuthSecurityService>();
 
         // Notifications
         services.AddScoped<INotificationService, NotificationService>();

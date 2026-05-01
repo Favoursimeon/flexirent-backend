@@ -1,4 +1,5 @@
 ﻿using FlexiRent.Application.DTOs;
+using FlexiRent.Application.Models;
 using FlexiRent.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -36,8 +37,14 @@ public class UsersController : ControllerBase
     [HttpPut("avatar")]
     public async Task<IActionResult> UploadAvatar(IFormFile file)
     {
-        var result = await _profileService.UploadAvatarAsync(_currentUser.UserId, file);
-        return Ok(result);
+        var upload = new FileUpload
+        {
+            Content = file.OpenReadStream(),
+            FileName = file.FileName,
+            ContentType = file.ContentType,
+            Length = file.Length
+        };
+        return Ok(await _profileService.UploadAvatarAsync(_currentUser.UserId, upload));
     }
 
     [HttpPut("emergency-contact")]

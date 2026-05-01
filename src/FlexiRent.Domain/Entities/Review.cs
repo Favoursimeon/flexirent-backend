@@ -3,6 +3,7 @@ namespace FlexiRent.Domain.Entities;
 public class Review
 {
     public Guid Id { get; set; }
+    public Guid PropertyId { get; set; }
     public Guid AuthorId { get; set; }
     public Guid TargetId { get; set; }
     public string TargetType { get; set; } = string.Empty;
@@ -12,5 +13,6 @@ public class Review
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? UpdatedAt { get; set; }
 
-    public User Author { get; set; } = null!;
+    public Profile Author { get; set; } = null!;
+    public ICollection<ReviewVote> Votes { get; set; } = new List<ReviewVote>();
 }

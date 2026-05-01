@@ -6,6 +6,7 @@ public class Profile
     public Guid UserId { get; set; }
     public string FirstName { get; set; } = string.Empty;
     public string LastName { get; set; } = string.Empty;
+    public string FullName => $"{FirstName} {LastName}".Trim();
     public string? Phone { get; set; }
     public string? AvatarUrl { get; set; }
     public string? Bio { get; set; }

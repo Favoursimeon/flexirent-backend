@@ -9,23 +9,21 @@ public class ReviewConfiguration : IEntityTypeConfiguration<Review>
     public void Configure(EntityTypeBuilder<Review> builder)
     {
         builder.HasKey(r => r.Id);
+        builder.Property(r => r.Comment).IsRequired().HasMaxLength(2000);
+        builder.Property(r => r.Rating).IsRequired();
 
-        builder.Property(r => r.TargetType)
-            .IsRequired()
-            .HasMaxLength(50);
-
-        builder.Property(r => r.Comment)
-            .IsRequired()
-            .HasMaxLength(2000);
-
-        builder.Property(r => r.Rating)
-            .HasAnnotation("CheckConstraint", "Rating BETWEEN 1 AND 5");
-
-        builder.HasIndex(r => new { r.TargetId, r.TargetType });
+        builder.HasIndex(r => r.PropertyId);
+        builder.HasIndex(r => r.AuthorId);
+        builder.HasIndex(r => new { r.PropertyId, r.AuthorId }).IsUnique();
 
         builder.HasOne(r => r.Author)
-            .WithMany(u => u.Reviews)
+            .WithMany()
             .HasForeignKey(r => r.AuthorId)
             .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasMany(r => r.Votes)
+            .WithOne(v => v.Review)
+            .HasForeignKey(v => v.ReviewId)
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }
