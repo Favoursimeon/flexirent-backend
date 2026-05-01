@@ -3,6 +3,7 @@ using System;
 using FlexiRent.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
@@ -11,9 +12,11 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FlexiRent.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260412162920_AddDocuments")]
+    partial class AddDocuments
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -154,25 +157,21 @@ namespace FlexiRent.Infrastructure.Migrations
 
                     b.Property<string>("ContentType")
                         .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("text");
 
                     b.Property<string>("FileName")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
                     b.Property<string>("FileUrl")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("text");
 
                     b.Property<Guid?>("FolderId")
                         .HasColumnType("uuid");
@@ -188,8 +187,7 @@ namespace FlexiRent.Infrastructure.Migrations
 
                     b.Property<string>("Title")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
@@ -213,13 +211,11 @@ namespace FlexiRent.Infrastructure.Migrations
                         .HasColumnType("timestamp without time zone");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("text");
 
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
+                        .HasColumnType("text");
 
                     b.Property<Guid>("OwnerId")
                         .HasColumnType("uuid");
@@ -246,8 +242,7 @@ namespace FlexiRent.Infrastructure.Migrations
                         .HasColumnType("uuid");
 
                     b.Property<string>("ChangeNotes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp without time zone");
@@ -257,13 +252,11 @@ namespace FlexiRent.Infrastructure.Migrations
 
                     b.Property<string>("FileName")
                         .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
                     b.Property<string>("FileUrl")
                         .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
+                        .HasColumnType("text");
 
                     b.Property<long>("SizeBytes")
                         .HasColumnType("bigint");
@@ -449,53 +442,6 @@ namespace FlexiRent.Infrastructure.Migrations
                     b.HasIndex("Status");
 
                     b.ToTable("PaymentSchedules");
-                });
-
-            modelBuilder.Entity("FlexiRent.Domain.Entities.PortfolioImage", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ContentType")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("character varying(100)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<int>("DisplayOrder")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ImageUrl")
-                        .IsRequired()
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid>("OwnerId")
-                        .HasColumnType("uuid");
-
-                    b.Property<long>("SizeBytes")
-                        .HasColumnType("bigint");
-
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("character varying(200)");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("OwnerId");
-
-                    b.ToTable("PortfolioImages");
                 });
 
             modelBuilder.Entity("FlexiRent.Domain.Entities.Profile", b =>
@@ -903,65 +849,28 @@ namespace FlexiRent.Infrastructure.Migrations
                     b.Property<bool>("IsHidden")
                         .HasColumnType("boolean");
 
-                    b.Property<Guid>("PropertyId")
-                        .HasColumnType("uuid");
-
                     b.Property<int>("Rating")
-                        .HasColumnType("integer");
+                        .HasColumnType("integer")
+                        .HasAnnotation("CheckConstraint", "Rating BETWEEN 1 AND 5");
 
                     b.Property<Guid>("TargetId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("TargetType")
                         .IsRequired()
-                        .HasColumnType("text");
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp without time zone");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
 
                     b.HasKey("Id");
 
                     b.HasIndex("AuthorId");
 
-                    b.HasIndex("PropertyId");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("PropertyId", "AuthorId")
-                        .IsUnique();
+                    b.HasIndex("TargetId", "TargetType");
 
                     b.ToTable("Reviews");
-                });
-
-            modelBuilder.Entity("FlexiRent.Domain.Entities.ReviewVote", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<bool>("IsHelpful")
-                        .HasColumnType("boolean");
-
-                    b.Property<Guid>("ReviewId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("UserId");
-
-                    b.HasIndex("ReviewId", "UserId")
-                        .IsUnique();
-
-                    b.ToTable("ReviewVotes");
                 });
 
             modelBuilder.Entity("FlexiRent.Domain.Entities.SharedDocument", b =>
@@ -993,12 +902,11 @@ namespace FlexiRent.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("DocumentId");
+
                     b.HasIndex("SharedByUserId");
 
                     b.HasIndex("SharedWithUserId");
-
-                    b.HasIndex("DocumentId", "SharedWithUserId")
-                        .IsUnique();
 
                     b.ToTable("SharedDocuments");
                 });
@@ -1020,26 +928,8 @@ namespace FlexiRent.Infrastructure.Migrations
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
 
-                    b.Property<string>("GoogleEmail")
-                        .HasColumnType("text");
-
-                    b.Property<string>("GoogleId")
-                        .HasColumnType("text");
-
                     b.Property<bool>("IsActive")
                         .HasColumnType("boolean");
-
-                    b.Property<DateTime?>("LastPasswordChange")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string[]>("MfaBackupCodes")
-                        .HasColumnType("text[]");
-
-                    b.Property<bool>("MfaEnabled")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("MfaSecretKey")
-                        .HasColumnType("text");
 
                     b.Property<string>("PasswordHash")
                         .IsRequired()
@@ -1239,13 +1129,12 @@ namespace FlexiRent.Infrastructure.Migrations
                 {
                     b.HasOne("FlexiRent.Domain.Entities.DocumentFolder", "Folder")
                         .WithMany("Documents")
-                        .HasForeignKey("FolderId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .HasForeignKey("FolderId");
 
                     b.HasOne("FlexiRent.Domain.Entities.User", "Owner")
                         .WithMany()
                         .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Folder");
@@ -1258,13 +1147,12 @@ namespace FlexiRent.Infrastructure.Migrations
                     b.HasOne("FlexiRent.Domain.Entities.User", "Owner")
                         .WithMany()
                         .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("FlexiRent.Domain.Entities.DocumentFolder", "ParentFolder")
                         .WithMany("SubFolders")
-                        .HasForeignKey("ParentFolderId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .HasForeignKey("ParentFolderId");
 
                     b.Navigation("Owner");
 
@@ -1282,7 +1170,7 @@ namespace FlexiRent.Infrastructure.Migrations
                     b.HasOne("FlexiRent.Domain.Entities.User", "UploadedBy")
                         .WithMany()
                         .HasForeignKey("UploadedById")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Document");
@@ -1332,17 +1220,6 @@ namespace FlexiRent.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Lease");
-                });
-
-            modelBuilder.Entity("FlexiRent.Domain.Entities.PortfolioImage", b =>
-                {
-                    b.HasOne("FlexiRent.Domain.Entities.User", "Owner")
-                        .WithMany()
-                        .HasForeignKey("OwnerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Owner");
                 });
 
             modelBuilder.Entity("FlexiRent.Domain.Entities.Profile", b =>
@@ -1447,36 +1324,13 @@ namespace FlexiRent.Infrastructure.Migrations
 
             modelBuilder.Entity("FlexiRent.Domain.Entities.Review", b =>
                 {
-                    b.HasOne("FlexiRent.Domain.Entities.Profile", "Author")
-                        .WithMany()
+                    b.HasOne("FlexiRent.Domain.Entities.User", "Author")
+                        .WithMany("Reviews")
                         .HasForeignKey("AuthorId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
-                    b.HasOne("FlexiRent.Domain.Entities.User", null)
-                        .WithMany("Reviews")
-                        .HasForeignKey("UserId");
-
                     b.Navigation("Author");
-                });
-
-            modelBuilder.Entity("FlexiRent.Domain.Entities.ReviewVote", b =>
-                {
-                    b.HasOne("FlexiRent.Domain.Entities.Review", "Review")
-                        .WithMany("Votes")
-                        .HasForeignKey("ReviewId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FlexiRent.Domain.Entities.User", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Review");
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("FlexiRent.Domain.Entities.SharedDocument", b =>
@@ -1490,13 +1344,13 @@ namespace FlexiRent.Infrastructure.Migrations
                     b.HasOne("FlexiRent.Domain.Entities.User", "SharedByUser")
                         .WithMany()
                         .HasForeignKey("SharedByUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("FlexiRent.Domain.Entities.User", "SharedWithUser")
                         .WithMany()
                         .HasForeignKey("SharedWithUserId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Document");
@@ -1608,11 +1462,6 @@ namespace FlexiRent.Infrastructure.Migrations
                     b.Navigation("PaymentSchedules");
 
                     b.Navigation("Payments");
-                });
-
-            modelBuilder.Entity("FlexiRent.Domain.Entities.Review", b =>
-                {
-                    b.Navigation("Votes");
                 });
 
             modelBuilder.Entity("FlexiRent.Domain.Entities.User", b =>

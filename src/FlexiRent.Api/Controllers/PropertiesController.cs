@@ -1,4 +1,6 @@
 ﻿using FlexiRent.Application.DTOs;
+using FlexiRent.Application.Models;
+using FlexiRent.Domain.Entities;
 using FlexiRent.Infrastructure.Authorization;
 using FlexiRent.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -50,12 +52,16 @@ public class PropertiesController : ControllerBase
 
     [HttpPost]
     [Authorize]
-    public async Task<IActionResult> Create(
-        [FromForm] CreatePropertyDto dto,
-        [FromForm] List<IFormFile>? images)
+    public async Task<IActionResult> Create([FromForm] CreatePropertyDto dto, List<IFormFile>? images)
     {
-        var result = await _propertyService.CreateAsync(_currentUser.UserId, dto, images);
-        return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
+        var uploads = images?.Select(f => new FileUpload
+        {
+            Content = f.OpenReadStream(),
+            FileName = f.FileName,
+            ContentType = f.ContentType,
+            Length = f.Length
+        }).ToList();
+        return Ok(await _propertyService.CreateAsync(_currentUser.UserId, dto, uploads));
     }
 
     [HttpPut("{id}")]
@@ -103,11 +109,9 @@ public class PropertiesController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPut("properties/{id}/status")]
+    [HttpPut("{id:guid}/status")]
     [Authorize(Policy = PolicyConstants.RequireAdminOrModerator)]
-    public async Task<IActionResult> UpdatePropertyStatus(
-    Guid id,
-    [FromBody] UpdatePropertyStatusDto dto)
+    public async Task<IActionResult> UpdatePropertyStatus(Guid id, [FromBody] UpdatePropertyStatusDto dto)
     {
         await _propertyService.UpdateStatusAsync(id, dto);
         return NoContent();

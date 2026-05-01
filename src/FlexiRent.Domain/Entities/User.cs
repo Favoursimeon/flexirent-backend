@@ -12,6 +12,13 @@ public class User
     public string? RefreshToken { get; set; }
     public DateTime? RefreshTokenExpiresAt { get; set; }
 
+    public bool MfaEnabled { get; set; }
+    public string? MfaSecretKey { get; set; }
+    public string? GoogleId { get; set; }
+    public string? GoogleEmail { get; set; }
+    public DateTime? LastPasswordChange { get; set; }
+    public string[]? MfaBackupCodes { get; set; }
+
     public Profile? Profile { get; set; }
     public ICollection<UserRole> Roles { get; set; } = new List<UserRole>();
     public ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();

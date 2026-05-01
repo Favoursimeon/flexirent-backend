@@ -28,22 +28,37 @@ public class AppDbContext : DbContext
     public DbSet<ViewingSchedule> ViewingSchedules => Set<ViewingSchedule>();
     public DbSet<ProviderAvailability> ProviderAvailabilities => Set<ProviderAvailability>();
 
+    // Documents
+    public DbSet<Document> Documents => Set<Document>();
+    public DbSet<DocumentFolder> DocumentFolders => Set<DocumentFolder>();
+    public DbSet<DocumentVersion> DocumentVersions => Set<DocumentVersion>();
+    public DbSet<SharedDocument> SharedDocuments => Set<SharedDocument>();
+
     // Payments
     public DbSet<RentalLease> RentalLeases => Set<RentalLease>();
     public DbSet<RentalPayment> RentalPayments => Set<RentalPayment>();
     public DbSet<PaymentSchedule> PaymentSchedules => Set<PaymentSchedule>();
     public DbSet<PaymentAccount> PaymentAccounts => Set<PaymentAccount>();
 
+    //Portfolio Images
+    public DbSet<PortfolioImage> PortfolioImages => Set<PortfolioImage>();
+
     // Notifications
     public DbSet<Notification> Notifications => Set<Notification>();
 
     // Admin
-    public DbSet<Review> Reviews => Set<Review>();
+ 
     public DbSet<Currency> Currencies => Set<Currency>();
+
+    //Reviews
+    public DbSet<Review> Reviews => Set<Review>();
+    public DbSet<ReviewVote> ReviewVotes => Set<ReviewVote>();
+
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
         base.OnModelCreating(modelBuilder);
+
     }
 }

@@ -4,12 +4,13 @@ using FlexiRent.Domain.Enums;
 using FlexiRent.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using FlexiRent.Application.Models;
 
 namespace FlexiRent.Infrastructure.Services;
 
 public interface IPropertyService
 {
-    Task<PropertyDto> CreateAsync(Guid ownerId, CreatePropertyDto dto, List<IFormFile>? images);
+    Task<PropertyDto> CreateAsync(Guid ownerId, CreatePropertyDto dto, List<FileUpload>? images);
     Task<PropertyDto> UpdateAsync(Guid propertyId, Guid requesterId, UpdatePropertyDto dto);
     Task DeleteAsync(Guid propertyId, Guid requesterId, bool isAdmin);
     Task<PropertyDto> GetByIdAsync(Guid propertyId);
@@ -41,7 +42,7 @@ public class PropertyService : IPropertyService
         _notificationService = notificationService;
     }
 
-    public async Task<PropertyDto> CreateAsync(Guid ownerId, CreatePropertyDto dto, List<IFormFile>? images)
+    public async Task<PropertyDto> CreateAsync(Guid ownerId, CreatePropertyDto dto, List<FileUpload>? images)
     {
         var property = new Property
         {
@@ -60,7 +61,6 @@ public class PropertyService : IPropertyService
             IsAvailable = true,
             CreatedAt = DateTime.UtcNow
         };
-
         _db.Properties.Add(property);
 
         if (images is { Count: > 0 })
@@ -82,12 +82,9 @@ public class PropertyService : IPropertyService
             }
         }
         await _cache.RemoveAsync($"properties:all::");
-
         await _db.SaveChangesAsync();
         return await GetByIdAsync(property.Id);
-
     }
-
     public async Task<PropertyDto> UpdateAsync(Guid propertyId, Guid requesterId, UpdatePropertyDto dto)
     {
         var property = await _db.Properties

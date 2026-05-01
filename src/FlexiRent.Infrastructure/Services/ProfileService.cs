@@ -3,6 +3,7 @@ using FlexiRent.Domain.Entities;
 using FlexiRent.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Http;
 using Microsoft.EntityFrameworkCore;
+using FlexiRent.Application.Models;
 
 namespace FlexiRent.Infrastructure.Services;
 
@@ -10,7 +11,7 @@ public interface IProfileService
 {
     Task<UserProfileDto> GetProfileAsync(Guid userId);
     Task<UserProfileDto> UpdateProfileAsync(Guid userId, UpdateProfileDto dto);
-    Task<AvatarUploadResultDto> UploadAvatarAsync(Guid userId, IFormFile file);
+    Task<AvatarUploadResultDto> UploadAvatarAsync(Guid userId, FileUpload file);
     Task UpdateEmergencyContactAsync(Guid userId, EmergencyContactDto dto);
     Task UpdatePrivacySettingsAsync(Guid userId, PrivacySettingsDto dto);
     Task UpdatePreferencesAsync(Guid userId, UserPreferencesDto dto);
@@ -55,7 +56,7 @@ public class ProfileService : IProfileService
         return MapToDto(profile);
     }
 
-    public async Task<AvatarUploadResultDto> UploadAvatarAsync(Guid userId, IFormFile file)
+    public async Task<AvatarUploadResultDto> UploadAvatarAsync(Guid userId, FileUpload file)
     {
         if (file.Length == 0)
             throw new ApplicationException("File is empty.");
